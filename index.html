@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Directed Graphs — A Level Computer Science</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f8fafc;
+    color: #1e293b;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 48px;
+  }
+  header { width: 100%; max-width: 720px; margin-bottom: 24px; }
+  .tag {
+    display: inline-block;
+    background: #E6F1FB; color: #0C447C;
+    font-size: 11px; font-weight: 600;
+    padding: 3px 10px; border-radius: 5px;
+    letter-spacing: 0.04em; margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  h1 { font-size: 26px; font-weight: 600; color: #0f172a; }
+  .card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 24px;
+    width: 100%; max-width: 720px;
+  }
+  .card-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px;
+  }
+  .badge {
+    font-size: 11px; font-weight: 600;
+    padding: 3px 10px; border-radius: 5px;
+    background: #E6F1FB; color: #0C447C;
+  }
+  .card-meta { font-size: 12px; color: #64748b; }
+  .step-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px; color: #64748b;
+    min-height: 52px; margin-bottom: 12px;
+    line-height: 1.6;
+  }
+  .step-box strong { color: #0f172a; font-weight: 600; }
+  .btn-row { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 8px; }
+  .btn {
+    font-family: inherit; font-size: 12px;
+    border: 1px solid #e2e8f0; border-radius: 7px;
+    padding: 6px 20px;
+    background: #fff; color: #334155;
+    cursor: pointer; transition: background .12s, border-color .12s;
+  }
+  .btn:hover { background: #f1f5f9; border-color: #cbd5e1; }
+  .btn:disabled { opacity: 0.3; cursor: default; }
+  .counter { font-size: 12px; color: #94a3b8; min-width: 50px; text-align: center; }
+  .dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #e2e8f0; cursor: pointer; transition: background .2s; }
+  .dot.on { background: #334155; }
+  svg .edge, svg .node-g { transition: opacity .35s; }
+  footer { margin-top: 32px; font-size: 11px; color: #94a3b8; text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="tag">A Level Computer Science</div>
+  <h1>Directed graphs</h1>
+</header>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge">Directed graph</span>
+    <span class="card-meta">Nodes = towns &nbsp;·&nbsp; Edges = directed roads (arrows)</span>
+  </div>
+  <div class="step-box" id="dg-box"></div>
+  <svg id="dg-svg" width="100%" viewBox="0 0 620 400" style="display:block">
+    <defs>
+      <marker id="arr-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#085041" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+      <marker id="arr-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#185FA5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+      <marker id="arr-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#534AB7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+  </svg>
+  <div class="dots" id="dg-dots"></div>
+  <div class="btn-row">
+    <button class="btn" id="dg-prev" onclick="dgNav(-1)">← Back</button>
+    <span class="counter" id="dg-counter"></span>
+    <button class="btn" id="dg-next" onclick="dgNav(1)">Next →</button>
+  </div>
+</div>
+
+<footer>A Level Computer Science · Directed Graphs</footer>
+
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('dg-svg');
+
+const nodes = {
+  Ashford:  {x:340, y:55},
+  Kenley:   {x:175, y:138},
+  Merton:   {x:500, y:170},
+  Wolton:   {x:118, y:268},
+  Cradley:  {x:305, y:272},
+  Pembridge:{x:458, y:308},
+  Stavely:  {x:228, y:368},
+};
+
+const R = 28;
+
+function unitVec(ax,ay,bx,by) {
+  const dx=bx-ax, dy=by-ay, len=Math.sqrt(dx*dx+dy*dy);
+  return [dx/len, dy/len];
+}
+function edgePts(ax,ay,bx,by,offset=0) {
+  const [ux,uy] = unitVec(ax,ay,bx,by);
+  const nx=-uy*offset, ny=ux*offset;
+  return {
+    x1: ax+ux*R+nx, y1: ay+uy*R+ny,
+    x2: bx-ux*(R+2)+nx, y2: by-uy*(R+2)+ny
+  };
+}
+
+const edgeDefs = [
+  {id:'e-ak',  a:'Ashford',  b:'Kenley',    col:'#185FA5', marker:'arr-blue',   offset:6},
+  {id:'e-ka',  a:'Kenley',   b:'Ashford',   col:'#185FA5', marker:'arr-blue',   offset:6},
+  {id:'e-am',  a:'Ashford',  b:'Merton',    col:'#185FA5', marker:'arr-blue',   offset:6},
+  {id:'e-ma',  a:'Merton',   b:'Ashford',   col:'#185FA5', marker:'arr-blue',   offset:6},
+  {id:'e-kw',  a:'Kenley',   b:'Wolton',    col:'#534AB7', marker:'arr-purple', offset:0},
+  {id:'e-kc',  a:'Kenley',   b:'Cradley',   col:'#534AB7', marker:'arr-purple', offset:0},
+  {id:'e-mc',  a:'Merton',   b:'Cradley',   col:'#534AB7', marker:'arr-purple', offset:0},
+  {id:'e-mp',  a:'Merton',   b:'Pembridge', col:'#534AB7', marker:'arr-purple', offset:0},
+  {id:'e-cs',  a:'Cradley',  b:'Stavely',   col:'#085041', marker:'arr-teal',   offset:6},
+  {id:'e-sc',  a:'Stavely',  b:'Cradley',   col:'#085041', marker:'arr-teal',   offset:6},
+  {id:'e-ws',  a:'Wolton',   b:'Stavely',   col:'#085041', marker:'arr-teal',   offset:0},
+  {id:'e-pc',  a:'Pembridge',b:'Cradley',   col:'#085041', marker:'arr-teal',   offset:0},
+];
+
+const edgeEls = {}, nodeEls = {};
+
+edgeDefs.forEach(ed => {
+  const n = nodes[ed.a], m = nodes[ed.b];
+  const {x1,y1,x2,y2} = edgePts(n.x, n.y, m.x, m.y, ed.offset);
+  const line = document.createElementNS(NS,'line');
+  line.setAttribute('x1',x1); line.setAttribute('y1',y1);
+  line.setAttribute('x2',x2); line.setAttribute('y2',y2);
+  line.setAttribute('stroke', ed.col);
+  line.setAttribute('stroke-width','2');
+  line.setAttribute('stroke-linecap','round');
+  line.setAttribute('marker-end','url(#'+ed.marker+')');
+  line.setAttribute('opacity','0');
+  line.classList.add('edge');
+  svg.appendChild(line);
+  edgeEls[ed.id] = line;
+});
+
+Object.entries(nodes).forEach(([name,{x,y}]) => {
+  const g = document.createElementNS(NS,'g');
+  g.setAttribute('opacity','0');
+  g.classList.add('node-g');
+  const c = document.createElementNS(NS,'circle');
+  c.setAttribute('cx',x); c.setAttribute('cy',y); c.setAttribute('r',R);
+  c.setAttribute('fill','#1D9E75'); c.setAttribute('stroke','#085041'); c.setAttribute('stroke-width','1.5');
+  const t = document.createElementNS(NS,'text');
+  t.setAttribute('x',x); t.setAttribute('y',y+1);
+  t.setAttribute('text-anchor','middle'); t.setAttribute('dominant-baseline','central');
+  t.setAttribute('font-size','11'); t.setAttribute('font-weight','600');
+  t.setAttribute('fill','white');
+  t.setAttribute('font-family','-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif');
+  t.setAttribute('style','pointer-events:none');
+  t.textContent = name;
+  g.appendChild(c); g.appendChild(t);
+  svg.appendChild(g);
+  nodeEls[name] = g;
+});
+
+function showIds(ids) {
+  ids.forEach(id => {
+    const el = edgeEls[id] || nodeEls[id];
+    if (el) el.setAttribute('opacity','1');
+  });
+}
+function hideAll() {
+  Object.values(edgeEls).forEach(e => e.setAttribute('opacity','0'));
+  Object.values(nodeEls).forEach(n => n.setAttribute('opacity','0'));
+}
+
+const ALL_NODES = Object.keys(nodes);
+const ALL_EDGES = Object.keys(edgeEls);
+
+const steps = [
+  { title:'A directed graph — nodes only',
+    desc:'All seven nodes are placed. No edges yet. In a directed graph, edges will have a direction — shown by arrows.',
+    show: ALL_NODES },
+  { title:'Bidirectional edge — Ashford and Kenley',
+    desc:'Two arrows are used between Ashford and Kenley, one in each direction. This represents a road that can be travelled both ways.',
+    show: [...ALL_NODES,'e-ak','e-ka'] },
+  { title:'Bidirectional edge — Ashford and Merton',
+    desc:'Ashford and Merton are connected in both directions. Two arrows together form a bidirectional connection.',
+    show: [...ALL_NODES,'e-ak','e-ka','e-am','e-ma'] },
+  { title:'One-way edges added',
+    desc:'Kenley connects to Wolton and Cradley. Merton connects to Cradley and Pembridge. These are one-way — only one arrow each.',
+    show: [...ALL_NODES,'e-ak','e-ka','e-am','e-ma','e-kw','e-kc','e-mc','e-mp'] },
+  { title:'Complete directed graph',
+    desc:'All edges added. Cradley and Stavely are bidirectional. Wolton→Stavely and Pembridge→Cradley are one-way. Arrows show the permitted direction of travel.',
+    show: [...ALL_NODES, ...ALL_EDGES] },
+];
+
+let step = 0;
+function render() {
+  hideAll();
+  const s = steps[step];
+  document.getElementById('dg-box').innerHTML = `<strong>${s.title}</strong><br>${s.desc}`;
+  showIds(s.show);
+  document.getElementById('dg-counter').textContent = (step+1)+' / '+steps.length;
+  document.getElementById('dg-prev').disabled = step === 0;
+  document.getElementById('dg-next').disabled = step === steps.length-1;
+  const dc = document.getElementById('dg-dots'); dc.innerHTML = '';
+  steps.forEach((_,i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i===step?' on':'');
+    d.onclick = ((_i) => () => { step=_i; render(); })(i);
+    dc.appendChild(d);
+  });
+}
+function dgNav(d) { step = Math.max(0, Math.min(steps.length-1, step+d)); render(); }
+render();
+</script>
+</body>
+</html>
